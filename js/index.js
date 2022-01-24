@@ -37,6 +37,7 @@ const nftAbi = {
 showBanner();
 
 window.addEventListener("load", function () {
+  getTotalSupplyNoWallet();
   loadWeb3();
   if (typeof window.web3 !== "undefined") {
     watchChainAccount();
@@ -60,13 +61,19 @@ function loadWeb3() {
 }
 
 function watchChainAccount() {
-  web3.currentProvider.on("accountsChanged", (accounts) => {
-    startApp();
-  });
-  web3.currentProvider.on("chainChanged", (chainId) => {
-    window.location.reload();
-    // startApp();
-  });
+  try {
+    web3.currentProvider.on("accountsChanged", (accounts) => {
+      startApp();
+    });
+    web3.currentProvider.on("chainChanged", (chainId) => {
+      window.location.reload();
+      // startApp();
+    });
+  } catch (error) {
+    console.log("watchChainAccount error => ", error);
+    document.getElementById("btn_mint").innerText =
+      "블록체인 지갑이 설치되어있지 않습니다. ";
+  }
 }
 
 async function startApp() {
@@ -108,9 +115,8 @@ async function getAccount() {
         $("#connect-btn").show();
         $("#my-addr-btn").hide();
 
-        $(".description").html(
-          "<p>모금에 참여하려면 지갑 연결 버튼을 클릭하여 지갑을 연결하세요..</p>"
-        );
+        document.getElementById("btn_mint").innerText = "지갑을 연결해주세요.";
+        document.getElementById("btn_mint").disabled = true;
       }
     } else {
       var accounts = await web3.eth.getAccounts();
@@ -131,9 +137,8 @@ async function getAccount() {
         $("#connect-btn").show();
         $("#my-addr-btn").hide();
 
-        $(".description").html(
-          "<p>모금에 참여하려면 지갑 연결 버튼을 클릭하여 지갑을 연결하세요..</p>"
-        );
+        document.getElementById("btn_mint").innerText = "지갑을 연결해주세요.";
+        document.getElementById("btn_mint").disabled = true;
       }
     }
     console.log("myAddr=>", myAddr);
@@ -319,7 +324,67 @@ async function getTotalSupply() {
   $(".claimedcnt").html(mintedCnt + "/" + maxCnt);
   $(".mintinnfee").html("[ " + fee_gwei + " KLAY ]");
 
-  showCardList("minted_cards_deck", null);
+  const mycards = await getMyCards();
+  setMyCardCnt(mycards);
+  // showCardList("minted_cards_deck", null);
+  // }
+}
+
+async function getTotalSupplyNoWallet() {
+  // clearInterval(totalsupplyInterval);
+  let cweb3 = new Web3(
+    new Web3.providers.HttpProvider(
+      "https://public-node-api.klaytnapi.com/v1/cypress"
+    )
+  );
+  let cnftContract = new cweb3.eth.Contract(
+    nftAbi[chainId],
+    nftAddress[chainId]
+  );
+
+  let maxCnt = 0;
+  let mintedCnt = 0;
+  // if (chainId == 8217) {
+  mintedCnt = await cnftContract.methods.totalSupply().call();
+  maxCnt = await cnftContract.methods.MAX_PUBLIC_ID().call();
+
+  //console.log("getTotalSupply   maxCnt=> ", maxCnt);
+  //console.log("getTotalSupply   mintedCnt=> ", mintedCnt);
+
+  let target_fund_cnt = document.getElementById("target_fund_cnt");
+  let current_fund_cnt = document.getElementById("current_fund_cnt");
+
+  let target_fund_klay = document.getElementById("target_fund_klay");
+  let current_fund_klay = document.getElementById("current_fund_klay");
+
+  const fee_wei = await cnftContract.methods.MINTING_FEE().call();
+
+  const fee_gwei = ethers.utils.formatEther(fee_wei);
+  const target_fund_klay_wei = ethers.BigNumber.from(fee_wei).mul(maxCnt);
+  const current_fund_klay_wei = ethers.BigNumber.from(fee_wei).mul(mintedCnt);
+
+  let target_fund_klay_gwei = ethers.utils.formatEther(target_fund_klay_wei);
+  target_fund_klay_gwei = gencurrencyFormat(target_fund_klay_gwei);
+
+  let current_fund_klay_gwei = ethers.utils.formatEther(current_fund_klay_wei);
+  current_fund_klay_gwei = gencurrencyFormat(current_fund_klay_gwei);
+
+  maxCnt = gencurrencyFormat(maxCnt);
+  mintedCnt = gencurrencyFormat(mintedCnt);
+
+  target_fund_cnt.innerText = maxCnt;
+  current_fund_cnt.innerText = mintedCnt;
+  target_fund_klay.innerHTML =
+    target_fund_klay_gwei + '<span style="font-size: 14px"> KLAY</span>';
+  current_fund_klay.innerHTML =
+    current_fund_klay_gwei + '<span style="font-size: 14px"> KLAY</span>';
+
+  $(".claimedcnt").html(mintedCnt + "/" + maxCnt);
+  $(".mintinnfee").html("[ " + fee_gwei + " KLAY ]");
+
+  //const mycards = await getMyCards();
+  //setMyCardCnt(mycards);
+  // showCardList("minted_cards_deck", null);
   // }
 }
 
@@ -461,6 +526,7 @@ async function nftMint() {
   }
 
   async function setMintResult(receipt) {
+    // console.log("setMintResult*** receipt => ", receipt);
     // terms agree check reset
     const terms_agree = document.getElementById("terms_agree");
     terms_agree.checked = false;
@@ -474,6 +540,7 @@ async function nftMint() {
         resultTokenids.push(receipt.events.Transfer.returnValues.tokenId);
       }
       getTotalSupply();
+      showCardList("minted_cards_deck", null);
     }
   }
 }
@@ -524,6 +591,7 @@ async function nftRefund() {
               // console.log("receipt => ", receipt);
 
               getTotalSupply();
+              showCardList("minted_cards_deck", null);
             })
             .on("error", (error) => {
               $("#minting-loading").hide();
@@ -549,6 +617,7 @@ async function nftRefund() {
               $("#minting-loading").hide();
               // console.log("receipt => ", receipt);
               getTotalSupply();
+              showCardList("minted_cards_deck", null);
             })
             .on("error", (error) => {
               $("#minting-loading").hide();
@@ -564,6 +633,45 @@ async function nftRefund() {
   }
 }
 
+async function getMyCards() {
+  let _TokenIdList = [];
+  if (mintingState == 2) {
+    // refund
+    _TokenIdList = await nftContract.methods.getUnclaimedRefunds(myAddr).call();
+    if (_TokenIdList.length > 0) {
+      _TokenIdList = _TokenIdList.filter((tokenID) => tokenID != "0");
+    }
+  } else {
+    // tokens of
+    _TokenIdList = await nftContract.methods.tokensOf(myAddr).call();
+  }
+  return _TokenIdList;
+}
+
+async function setMyCardCnt(_tokenIds) {
+  if (_tokenIds.length > 0) {
+    const fee_wei = await nftContract.methods.MINTING_FEE().call();
+    let my_fund_cnt = document.getElementById("my_fund_cnt");
+    let my_fund_klay = document.getElementById("my_fund_klay");
+    const my_fund_klay_wei = ethers.BigNumber.from(fee_wei).mul(
+      _tokenIds.length
+    );
+
+    let my_fund_klay_gwei = ethers.utils.formatEther(my_fund_klay_wei);
+
+    my_fund_klay_gwei = gencurrencyFormat(my_fund_klay_gwei);
+    let myTokenCnt = _tokenIds.length;
+    myTokenCnt = gencurrencyFormat(myTokenCnt);
+
+    my_fund_cnt.innerText = myTokenCnt;
+    my_fund_klay.innerHTML =
+      my_fund_klay_gwei + '<span style="font-size: 14px"> KLAY</span>';
+  } else {
+    my_fund_cnt.innerText = 0;
+    my_fund_klay.innerHTML = 0 + '<span style="font-size: 14px"> KLAY</span>';
+  }
+}
+
 getCardInfo = async (tokenId) => {
   try {
     let tokenInfoBase64 = await nftContract.methods.tokenURI(tokenId).call();
@@ -576,6 +684,7 @@ getCardInfo = async (tokenId) => {
 };
 
 showCardList = async (kind, tokenIds) => {
+  console.log("**** showCardList");
   if (mintingState == 1) {
     // public mint
     $("#mintin_btn_div").show();
@@ -596,43 +705,15 @@ showCardList = async (kind, tokenIds) => {
   $("#minting-loading").show();
   checkInTokenIdList = [];
   let claimTokenIdList = [];
-  if (mintingState == 2) {
-    // refund
-    claimTokenIdList = await nftContract.methods
-      .getUnclaimedRefunds(myAddr)
-      .call();
-  } else {
-    // tokens of
-    claimTokenIdList = await nftContract.methods.tokensOf(myAddr).call();
-  }
 
-  if (claimTokenIdList.length > 0) {
-    claimTokenIdList = claimTokenIdList.filter((tokenID) => tokenID != "0");
-  }
+  claimTokenIdList = await getMyCards();
+
   let tokenId = claimTokenIdList;
   // let tokenId = [];
   const target = document.getElementById("btn_minting");
   target.disabled = true;
 
-  if (tokenId.length > 0) {
-    const fee_wei = await nftContract.methods.MINTING_FEE().call();
-    let my_fund_cnt = document.getElementById("my_fund_cnt");
-    let my_fund_klay = document.getElementById("my_fund_klay");
-    const my_fund_klay_wei = ethers.BigNumber.from(fee_wei).mul(tokenId.length);
-
-    let my_fund_klay_gwei = ethers.utils.formatEther(my_fund_klay_wei);
-
-    my_fund_klay_gwei = gencurrencyFormat(my_fund_klay_gwei);
-    let myTokenCnt = tokenId.length;
-    myTokenCnt = gencurrencyFormat(myTokenCnt);
-
-    my_fund_cnt.innerText = myTokenCnt;
-    my_fund_klay.innerHTML =
-      my_fund_klay_gwei + '<span style="font-size: 14px"> KLAY</span>';
-  } else {
-    my_fund_cnt.innerText = 0;
-    my_fund_klay.innerHTML = 0 + '<span style="font-size: 14px"> KLAY</span>';
-  }
+  setMyCardCnt(tokenId);
 
   if (tokenId.length == 0) {
     $("#div-minted-cards").hide();
@@ -835,6 +916,7 @@ btnOpenPopup.addEventListener("click", () => {
 
       break;
   }
+  showCardList("minted_cards_deck", null);
   $("#funding-btn-div").hide();
 });
 
