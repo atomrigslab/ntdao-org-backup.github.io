@@ -55,7 +55,7 @@ function getOpenSeaLink(chainId) {
 }
 
 function getMyOpenSeaLink(chainId, _myaddr) {
-  console.log("getMyOpenSeaLink _myaddr => ", _myaddr);
+  // console.log("getMyOpenSeaLink _myaddr => ", _myaddr);
   var explorer;
   if (chainId == 8217) {
     if (_myaddr !== undefined) {
@@ -86,6 +86,36 @@ function getMyOpenSeaLink(chainId, _myaddr) {
     explorer +
     '">National Treasure DAO NFT</a>'
   );
+}
+
+function getMyOpenSeaUrl(chainId, _myaddr) {
+  // console.log("getMyOpenSeaLink _myaddr => ", _myaddr);
+  var explorer;
+  if (chainId == 8217) {
+    if (_myaddr !== undefined) {
+      explorer =
+        "https://opensea.io/" +
+        _myaddr +
+        "/national-treasure-dao?search[sortBy]=LISTING_DATE";
+    } else {
+      explorer = "https://opensea.io/collection/national-treasure-dao";
+    }
+  } else if (chainId == 1001) {
+    if (_myaddr !== undefined) {
+      explorer =
+        "https://testnets.opensea.io/" +
+        _myaddr +
+        "/national-treasure-dao-nft-v3?search[sortBy]=LISTING_DATE";
+    } else {
+      explorer =
+        "https://testnets.opensea.io/collection/national-treasure-dao-nft-v3";
+    }
+  } else {
+    explorer = "";
+    console.log("unsupported chainid " + chainId);
+  }
+
+  return explorer;
 }
 
 function goMintGuide() {
@@ -143,4 +173,36 @@ const countDownTimer = function (id, date) {
 function convDatetoTime(date) {
   let convDate = new Date(date);
   return convDate;
+}
+
+// use event modal popup
+function setCookie(name, value, expiredays) {
+  var today = new Date();
+  console.log(today.getDate());
+  today.setDate(today.getDate() + expiredays);
+
+  document.cookie =
+    name + "=" + value + "; path=/; expires=" + today.toGMTString();
+}
+
+function getCookie(name) {
+  var cookie = document.cookie;
+
+  if (document.cookie != "") {
+    var cookie_array = cookie.split("; ");
+    console.log(cookie_array);
+    for (var index in cookie_array) {
+      var cookie_name = cookie_array[index].split("=");
+      if (cookie_name[0] == "popEventToday") {
+        return cookie_name[1];
+      }
+    }
+  }
+  return;
+}
+
+function delCookie(_name) {
+  let date = new Date();
+  date.setDate(date.getDate() - 100);
+  document.cookie = _name + "= ; expires=" + date.toGMTString();
 }

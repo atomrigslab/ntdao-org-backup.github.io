@@ -10,6 +10,7 @@ const networkList = {
 };
 let myAddr;
 let mintingFee;
+let myNftCount = 0;
 let totalsupplyInterval;
 
 let openMyCardsView = false;
@@ -37,6 +38,7 @@ const nftAbi = {
 };
 
 showBanner();
+makeEventPopup();
 
 window.addEventListener("load", function () {
   getTotalSupplyNoWallet();
@@ -226,10 +228,12 @@ async function getMintingState() {
     case "0":
       btn_mint.disabled = true;
       btn_mint.innerText = "민팅 23일 오후 9시 시작됩니다.";
+      $("#refund_thanks").hide();
       break;
     case "1":
       btn_mint.disabled = false;
       btn_mint.innerText = "민팅 참여하기";
+      $("#refund_thanks").hide();
       break;
     case "2":
       btn_mint.disabled = false;
@@ -237,11 +241,16 @@ async function getMintingState() {
       my_refundable_cnt = document.getElementById("my_refundable_cnt");
       my_refundable_cnt.innerText = "환불 가능한 내 NFT 개수";
       $("#my_fund_klay").hide();
+      $("#refund_thanks").show();
 
       break;
     case "3":
       btn_mint.disabled = false;
       btn_mint.innerText = "민팅 종료!! 내 NFT 보기";
+      let finish_str = "";
+      finish_str = finish_str + "국보Dao NFT 민팅에 참여해주셔서 감사합니다.";
+      document.getElementById("refund_thanks").innerText = finish_str;
+      $("#refund_thanks").show();
       break;
   }
 
@@ -551,7 +560,7 @@ async function nftMint() {
 }
 
 async function nftRefund() {
-  console.log("nftRefund checkInTokenIdList => ", checkInTokenIdList);
+  // console.log("nftRefund checkInTokenIdList => ", checkInTokenIdList);
   try {
     $("#minting-loading").show();
 
@@ -666,12 +675,14 @@ async function setMyCardCnt(_tokenIds) {
 
     my_fund_klay_gwei = gencurrencyFormat(my_fund_klay_gwei);
     let myTokenCnt = _tokenIds.length;
+    myNftCount = myTokenCnt; // global variable
     myTokenCnt = gencurrencyFormat(myTokenCnt);
 
     my_fund_cnt.innerText = myTokenCnt;
     my_fund_klay.innerHTML =
       my_fund_klay_gwei + '<span style="font-size: 14px"> KLAY</span>';
   } else {
+    myNftCount = 0;
     my_fund_cnt.innerText = 0;
     my_fund_klay.innerHTML = 0 + '<span style="font-size: 14px"> KLAY</span>';
   }
@@ -695,6 +706,7 @@ showCardList = async (kind, tokenIds) => {
     $("#mintin_btn_div").show();
     $("#claimedcnt").show();
     $("#mintinnfee").show();
+    $("#refund_desc").hide();
   } else if (mintingState == 2) {
     // refund
     $("#mintin_btn_div").show();
@@ -705,6 +717,7 @@ showCardList = async (kind, tokenIds) => {
     $("#mintin_btn_div").hide();
     $("#claimedcnt").hide();
     $("#mintinnfee").hide();
+    $("#refund_desc").hide();
   }
 
   $("#minting-loading").show();
@@ -720,6 +733,14 @@ showCardList = async (kind, tokenIds) => {
 
   setMyCardCnt(tokenId);
 
+  // make Refund Description
+  if (mintingState == 2) {
+    makeRefundDesc();
+    $("#refund_desc").show();
+  } else {
+    $("#refund_desc").hide();
+  }
+
   if (tokenId.length == 0) {
     $("#div-minted-cards").hide();
     $("#minting-loading").hide();
@@ -727,6 +748,7 @@ showCardList = async (kind, tokenIds) => {
   } else {
     $("#div-minted-cards").show();
   }
+
   let arr = [];
 
   const cardInfoList = await Promise.all(
@@ -908,7 +930,6 @@ btnOpenPopup.addEventListener("click", () => {
       btn_minting.innerText = "NFT 민팅";
       $("#claimedcnt").show();
       $("#mintinnfee").show();
-      $("#refund_desc").hide();
       const terms_agree = document.getElementById("terms_agree");
       if (terms_agree.checked) {
         target.disabled = false;
@@ -921,8 +942,6 @@ btnOpenPopup.addEventListener("click", () => {
       target.disabled = true;
       $("#claimedcnt").hide();
       $("#mintinnfee").hide();
-      $("#refund_desc").show();
-
       break;
   }
   showCardList("minted_cards_deck", null);
@@ -944,6 +963,29 @@ modal_mint.addEventListener("click", (event) => {
   }
 });
 
+function makeRefundDesc() {
+  let refund_desc = document.getElementById("refund_desc");
+  let refund_desc_str = "";
+  // console.log("myNftCount =>", myNftCount);
+  if (myNftCount == 0) {
+    refund_desc_str = refund_desc_str + "환불 할 NFT가 없습니다.<br/><br/>";
+  } else {
+    refund_desc_str =
+      refund_desc_str +
+      "환불 할 NFT 를 선택 후 NFT 환불 버튼을 눌러주세요.<br/><br/>";
+  }
+  refund_desc_str =
+    refund_desc_str + "국보Dao NFT는 환불 되어도 소유권은 그대로 유지되며";
+
+  refund_desc_str =
+    refund_desc_str +
+    '<span><a target="_blank" style="text-decoration: underline;color: var(----primary-color); font-size:18px;" href="';
+  refund_desc_str =
+    refund_desc_str +
+    getMyOpenSeaUrl(chainId, myAddr) +
+    '"><strong> Opensea 에서 확인</strong></a> </span>할 수 있습니다.';
+  refund_desc.innerHTML = refund_desc_str;
+}
 function gencurrencyFormat(_val) {
   let org_val = _val;
 
@@ -963,3 +1005,102 @@ termsAgreeCheck = (e) => {
     target.disabled = true;
   }
 };
+
+function makeEventPopup() {
+  // clearInterval(totalsupplyInterval);
+  let eventPopupCookieCheck = getCookie("popEventToday");
+  if (eventPopupCookieCheck == "popupClose") {
+    // For test
+    delCookie("popEventToday");
+    $("#event_popup").hide();
+  } else {
+    let events = event_contents;
+
+    if (events.length > 0) {
+      setEventContent(events, 0);
+      let loop_cnt = 1;
+      if (events.length > 1) {
+        setInterval(function () {
+          setEventContent(events, loop_cnt);
+
+          loop_cnt = loop_cnt + 1;
+          // console.log("loop_cnt =>", loop_cnt);
+          loop_cnt > events.length - 1 ? (loop_cnt = 0) : loop_cnt;
+        }, 5000);
+      }
+
+      $("#event_popup").show();
+    } else {
+      $("#event_popup").hide();
+    }
+  }
+}
+
+function setEventContent(eventContents, contentidx) {
+  // console.log("contentidx =>", contentidx);
+
+  document.getElementById("event_count").innerText =
+    contentidx + 1 + " / " + eventContents.length;
+  // document.getElementById("event_company").innerText = events[i].company;
+
+  $("#event_company").hide();
+  // Logo image
+  if (eventContents[contentidx].logo.length > 0) {
+    document.getElementById("event_company_logo").innerHTML =
+      '<img height="50" style=" margin-top:10px;" src="./event/asset/' +
+      eventContents[contentidx].logo +
+      '"></img>';
+  } else {
+    document.getElementById("event_company_logo").innerHTML = "";
+  }
+  // event title
+  if (eventContents[contentidx].title.length > 0) {
+    document.getElementById("event_title").innerHTML =
+      '<p class="event-p" style="text-align:center; margin-top:10px; "><strong>' +
+      eventContents[contentidx].title +
+      "</strong></p>";
+  } else {
+    document.getElementById("event_title").innerHTML = "";
+  }
+
+  // event simple content
+  if (eventContents[contentidx].simplecontent.length > 0) {
+    document.getElementById("event_content").innerHTML =
+      '<p class="event-p" >' + eventContents[contentidx].simplecontent + "</p>";
+  } else {
+    document.getElementById("event_content").innerHTML = "";
+  }
+
+  // event content image
+  if (eventContents[contentidx].contentimg.length > 0) {
+    document.getElementById("event_img").style.width = "320px";
+    document.getElementById("event_img").innerHTML =
+      '<img width="320px" src="./event/asset/' +
+      eventContents[contentidx].contentimg +
+      '"></img>';
+  } else {
+    document.getElementById("event_img").style.width = "0";
+    document.getElementById("event_img").style.height = "0";
+
+    document.getElementById("event_img").innerHTML = "";
+  }
+
+  // event detail link url
+  if (eventContents[contentidx].linkurl.length > 0) {
+    // <button class="button-text-large" style="font-size: 16px">이벤트 자세히보</button>
+
+    document.getElementById("event_link").innerHTML =
+      '<a target="_blank" class="event_detail_link button-text-large" style="font-size: 16px; text-decoration:none;" href="' +
+      eventContents[contentidx].linkurl +
+      '" >이벤트 페이지로 이동</a>';
+  } else {
+    document.getElementById("event_link").innerHTML = "";
+  }
+}
+
+function closeEventPopup(_closekind) {
+  if (_closekind === "today") {
+    setCookie("popEventToday", "popupClose", 1);
+  }
+  $("#event_popup").hide();
+}
